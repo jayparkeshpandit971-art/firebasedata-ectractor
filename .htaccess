@@ -5,7 +5,6 @@
 RewriteEngine On
 
 # DO NOT force HTTPS - Render already handles it
-# Remove the HTTPS redirect to avoid loops
 
 # Route everything to index.php (which handles everything)
 RewriteCond %{REQUEST_FILENAME} !-f
@@ -24,3 +23,7 @@ DirectoryIndex index.php bot.php
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
     Header set Access-Control-Allow-Headers "Content-Type"
 </IfModule>
+
+# Error handling
+ErrorDocument 404 /index.php
+ErrorDocument 403 /index.php
