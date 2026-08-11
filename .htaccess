@@ -1,0 +1,27 @@
+RewriteEngine On
+
+# Force HTTPS
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+
+# Route everything to bot.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ bot.php [QSA,L]
+
+# Allow direct access
+RewriteRule ^bot\.php$ - [L]
+
+# Set index
+DirectoryIndex index.php bot.php
+
+# Headers
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    Header set Access-Control-Allow-Headers "Content-Type"
+</IfModule>
+
+# Error handling
+ErrorDocument 404 /bot.php
+ErrorDocument 403 /bot.php
