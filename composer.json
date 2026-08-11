@@ -1,7 +1,6 @@
 {
     "name": "lisa/firebase-dumper-bot",
     "description": "Telegram Firebase Dumper Bot with Bypass",
-    "type": "project",
     "require": {
         "php": ">=7.4",
         "ext-curl": "*",
