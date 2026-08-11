@@ -8,7 +8,84 @@ ini_set('display_errors', 1);
 set_time_limit(300);
 ini_set('memory_limit', '512M');
 
-// ======= CONFIGURATION =======
+// ============================================================
+// HANDLE GET REQUESTS (Webhook setup, health check)
+// ============================================================
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    
+    define('BOT_TOKEN', getenv('BOT_TOKEN') ?: '8857272368:AAEx1QgPItP4A3LeB2-Nk2KIP83pJC3rnig');
+    
+    // Set webhook
+    if (isset($_GET['set_webhook']) || strpos($_SERVER['REQUEST_URI'], 'set_webhook') !== false) {
+        $url = "https://api.telegram.org/bot" . BOT_TOKEN . "/setWebhook";
+        $webhookUrl = "https://" . $_SERVER['HTTP_HOST'] . "/bot.php";
+        $data = ['url' => $webhookUrl];
+        
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => $httpCode === 200,
+            'webhook_url' => $webhookUrl,
+            'response' => json_decode($response, true),
+            'http_code' => $httpCode
+        ], JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    // Webhook info
+    if (isset($_GET['webhook_info']) || strpos($_SERVER['REQUEST_URI'], 'webhook_info') !== false) {
+        $url = "https://api.telegram.org/bot" . BOT_TOKEN . "/getWebhookInfo";
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        $response = curl_exec($ch);
+        curl_close($ch);
+        
+        header('Content-Type: application/json');
+        echo json_encode(json_decode($response, true), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    // Health check
+    if (isset($_GET['health']) || strpos($_SERVER['REQUEST_URI'], 'health') !== false) {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'status' => 'healthy',
+            'bot' => 'Firebase Dumper Bot',
+            'time' => date('Y-m-d H:i:s'),
+            'webhook_url' => 'https://' . $_SERVER['HTTP_HOST'] . '/bot.php'
+        ]);
+        exit;
+    }
+    
+    // If it's a GET request to bot.php without any param
+    if ($_SERVER['REQUEST_URI'] === '/bot.php' || $_SERVER['REQUEST_URI'] === '/bot.php?') {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'status' => 'bot_online',
+            'message' => 'Send POST requests for Telegram webhook',
+            'webhook_url' => 'https://' . $_SERVER['HTTP_HOST'] . '/bot.php',
+            'commands' => ['/start', '/help', '/status', '/bypass', '/test']
+        ]);
+        exit;
+    }
+}
+
+// ============================================================
+// CONFIGURATION
+// ============================================================
 define('BOT_TOKEN', getenv('BOT_TOKEN') ?: '8857272368:AAEx1QgPItP4A3LeB2-Nk2KIP83pJC3rnig');
 define('ADMIN_CHAT_ID', getenv('ADMIN_CHAT_ID') ?: '');
 
@@ -22,91 +99,6 @@ function bot_log($msg) {
 bot_log("=== BOT STARTED ===");
 bot_log("REQUEST_METHOD: " . $_SERVER['REQUEST_METHOD']);
 bot_log("REQUEST_URI: " . $_SERVER['REQUEST_URI']);
-
-// ============================================================
-// WEBHOOK FUNCTIONS
-// ============================================================
-
-function setWebhook() {
-    $url = "https://api.telegram.org/bot" . BOT_TOKEN . "/setWebhook";
-    $webhookUrl = "https://" . $_SERVER['HTTP_HOST'] . "/bot.php";
-    
-    $data = ['url' => $webhookUrl];
-    
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-    
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    
-    bot_log("Webhook set: $webhookUrl - HTTP: $httpCode");
-    bot_log("Response: " . substr($response, 0, 500));
-    
-    return [
-        'success' => $httpCode === 200,
-        'url' => $webhookUrl,
-        'response' => json_decode($response, true),
-        'http_code' => $httpCode
-    ];
-}
-
-function getWebhookInfo() {
-    $url = "https://api.telegram.org/bot" . BOT_TOKEN . "/getWebhookInfo";
-    
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-    
-    $response = curl_exec($ch);
-    curl_close($ch);
-    
-    return json_decode($response, true);
-}
-
-// ============================================================
-// HANDLE GET REQUESTS (Webhook setup, health check)
-// ============================================================
-
-if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    if (isset($_GET['set_webhook'])) {
-        header('Content-Type: application/json');
-        $result = setWebhook();
-        echo json_encode($result, JSON_PRETTY_PRINT);
-        exit;
-    }
-    
-    if (isset($_GET['webhook_info'])) {
-        header('Content-Type: application/json');
-        echo json_encode(getWebhookInfo(), JSON_PRETTY_PRINT);
-        exit;
-    }
-    
-    if (isset($_GET['health']) || $_SERVER['REQUEST_URI'] === '/health') {
-        header('Content-Type: application/json');
-        echo json_encode(['status' => 'healthy', 'time' => date('Y-m-d H:i:s')]);
-        exit;
-    }
-    
-    // If it's a GET request to bot.php without any param, show info
-    if ($_SERVER['REQUEST_URI'] === '/bot.php' || $_SERVER['REQUEST_URI'] === '/bot.php?') {
-        header('Content-Type: application/json');
-        echo json_encode([
-            'status' => 'bot_online',
-            'message' => 'Send POST requests for Telegram webhook',
-            'webhook_url' => 'https://' . $_SERVER['HTTP_HOST'] . '/bot.php',
-            'commands' => ['/start', '/help', '/status', '/bypass', '/test']
-        ]);
-        exit;
-    }
-}
 
 // ============================================================
 // TELEGRAM FUNCTIONS
@@ -521,7 +513,6 @@ bot_log("Raw input: " . substr($input, 0, 500));
 
 if (empty($input)) {
     bot_log("No input received - empty POST");
-    // If it's a POST request but no data, it's probably a webhook test
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo json_encode(['status' => 'ok', 'message' => 'Webhook received but no update data']);
         exit;
