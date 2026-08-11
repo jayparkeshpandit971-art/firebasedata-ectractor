@@ -1,34 +1,47 @@
 <?php
 // ============================================================
-// REDIRECT ALL TRAFFIC TO bot.php
+// INDEX.PHP - HANDLES ALL REQUESTS (BREAKS THE LOOP)
 // ============================================================
 
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// Handle POST requests (Telegram webhook)
+// Log all requests
+$log = fopen('/tmp/bot.log', 'a');
+fwrite($log, date('Y-m-d H:i:s') . " - " . $_SERVER['REQUEST_METHOD'] . " " . $_SERVER['REQUEST_URI'] . " - " . $_SERVER['REMOTE_ADDR'] . "\n");
+fclose($log);
+
+// ============================================================
+// HANDLE POST REQUESTS (Telegram webhook)
+// ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_once __DIR__ . '/bot.php';
     exit;
 }
 
-// Handle GET requests
+// ============================================================
+// HANDLE GET REQUESTS
+// ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     
+    // Get the path
+    $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    $query = parse_url($_SERVER['REQUEST_URI'], PHP_URL_QUERY);
+    
     // Webhook setup
-    if (isset($_GET['set_webhook'])) {
+    if (strpos($path, 'set_webhook') !== false || strpos($query ?? '', 'set_webhook') !== false) {
         require_once __DIR__ . '/bot.php';
         exit;
     }
     
     // Webhook info
-    if (isset($_GET['webhook_info'])) {
+    if (strpos($path, 'webhook_info') !== false || strpos($query ?? '', 'webhook_info') !== false) {
         require_once __DIR__ . '/bot.php';
         exit;
     }
     
     // Health check
-    if (isset($_GET['health']) || $_SERVER['REQUEST_URI'] === '/health') {
+    if (strpos($path, 'health') !== false || strpos($query ?? '', 'health') !== false) {
         header('Content-Type: application/json');
         echo json_encode([
             'status' => 'healthy',
@@ -39,8 +52,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     }
     
-    // Default: Show status page
+    // ============================================================
+    // DEFAULT: SHOW STATUS PAGE (NO REDIRECT)
+    // ============================================================
     $host = $_SERVER['HTTP_HOST'];
+    $botUsername = getenv('BOT_USERNAME') ?: 'your_bot';
+    
     echo "<!DOCTYPE html>
     <html>
     <head>
@@ -67,6 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             .btn-secondary:hover { background: #444; }
             code { background: #2a2a2a; padding: 2px 8px; border-radius: 4px; font-size: 13px; color: #ff6b00; }
             .footer { margin-top: 30px; color: #555; font-size: 12px; }
+            .highlight { color: #ff6b00; font-weight: bold; }
         </style>
     </head>
     <body>
@@ -79,12 +97,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 <p>🤖 Bot: <span class='badge badge-orange'>● ACTIVE</span></p>
                 <p>📅 Time: " . date('Y-m-d H:i:s') . "</p>
                 <p>🔗 Webhook: <code>https://{$host}/bot.php</code></p>
+                <p>📱 Bot: <span class='highlight'>@{$botUsername}</span></p>
             </div>
             
             <div>
                 <a href='?set_webhook' class='btn btn-primary'>⚡ Set Webhook</a>
                 <a href='?webhook_info' class='btn btn-secondary'>📊 Webhook Info</a>
-                <a href='https://t.me/" . (getenv('BOT_USERNAME') ?: 'your_bot') . "' class='btn btn-telegram' target='_blank'>📱 Open Bot</a>
+                <a href='https://t.me/{$botUsername}' class='btn btn-telegram' target='_blank'>📱 Open Bot</a>
             </div>
             
             <div style='margin-top:20px;'>
@@ -94,10 +113,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             <div class='footer'>
                 <p>Send a Firebase config JSON to extract all data</p>
                 <p>Commands: /start, /help, /status, /bypass, /test</p>
+                <p style='margin-top:10px; color:#333;'>v4.0 | Deployed on Render</p>
             </div>
         </div>
     </body>
     </html>";
     exit;
 }
+
+// ============================================================
+// FALLBACK: If no method matches
+// ============================================================
+header('HTTP/1.1 405 Method Not Allowed');
+echo json_encode(['error' => 'Method not allowed']);
+exit;
 ?>
