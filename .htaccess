@@ -1,16 +1,19 @@
+# ============================================================
+# FIXED .HTACCESS - NO REDIRECT LOOP
+# ============================================================
+
 RewriteEngine On
 
-# Force HTTPS
-RewriteCond %{HTTPS} off
-RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+# DO NOT force HTTPS - Render already handles it
+# Remove the HTTPS redirect to avoid loops
 
-# Route everything to bot.php
+# Route everything to index.php (which handles everything)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ bot.php [QSA,L]
+RewriteRule ^(.*)$ index.php [QSA,L]
 
-# Allow direct access
-RewriteRule ^bot\.php$ - [L]
+# Allow direct access to bot.php and index.php
+RewriteRule ^(bot\.php|index\.php)$ - [L]
 
 # Set index
 DirectoryIndex index.php bot.php
@@ -21,7 +24,3 @@ DirectoryIndex index.php bot.php
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
     Header set Access-Control-Allow-Headers "Content-Type"
 </IfModule>
-
-# Error handling
-ErrorDocument 404 /bot.php
-ErrorDocument 403 /bot.php
